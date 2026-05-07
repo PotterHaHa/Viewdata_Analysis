@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>觀看數據分析工作室</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.run/@google/genai"
+  }
+}
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
 :root{
@@ -1702,20 +1709,18 @@ async function sendMsg() {
     let text = '';
 
     if (llmProvider === 'gemini') {
-      // ── Gemini API ──
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${activeKey}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: 'user', parts: [{ text: fullQ }] }],
-          generationConfig: { maxOutputTokens: 1000 }
-        })
+      // ── Gemini API (via official SDK to avoid CORS) ──
+      const { GoogleGenAI } = await import('@google/genai');
+      const genai = new GoogleGenAI({ apiKey: activeKey });
+      const result = await genai.models.generateContent({
+        model: activeModel,
+        contents: fullQ,
+        config: {
+          systemInstruction: systemPrompt,
+          maxOutputTokens: 1000,
+        }
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      text = data.candidates?.[0]?.content?.parts?.[0]?.text || '無法取得回應';
+      text = result.text || '無法取得回應';
 
     } else {
       // ── Claude API ──
